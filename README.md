@@ -71,6 +71,12 @@ macOS 26 introduced a new privacy control under System Settings → Menu Bar. Ap
 
 **Solution:** open **System Settings → Menu Bar** and toggle **Stats** ON.
 
+### 合并模块的间距
+
+在「设置 → 合并模块 → 间距」中选择 `-1` 到 `-4`，可逐步缩小每个模块的左右留白，选择后立即生效。`-4` 去掉普通模块容器的左右留白；网速等速率组件位于模块末尾时，右侧仍保留 2 点，避免单位与下一个模块的标题粘连。组件本身的文字、图表或固定宽度不变，分隔符仍会保留必要空间。
+
+「默认」对应旧版的「无」，保持原有布局；`1` 到 `8` 继续增加模块之间的额外间距。关闭「合并模块」后，独立模块使用原来的留白。
+
 ### Desktop widgets not showing the data
 Due to a problem with high data load in the system process (`chronod`) responsible for communication between the app and widgets, communication is disabled by default on the Stats side. To enable it, the `macOS widgets` option must be enabled in the Stats settings. More details you can find [here](https://github.com/exelban/stats/issues/2733).
 

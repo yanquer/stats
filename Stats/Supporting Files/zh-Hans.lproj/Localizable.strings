@@ -168,6 +168,7 @@
 "Combined modules" = "合并模块";
 "Combined details" = "合并详情";
 "Spacing" = "间距";
+"Negative values reduce module padding" = "负值缩小模块留白";
 "Choose file" = "选择文件";
 "Stress tests" = "压力测试";
 "Keep the menubar items position" = "保持菜单栏项目的位置"; // qwen3.8:27b

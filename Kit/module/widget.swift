@@ -423,11 +423,13 @@ public class MenuBar {
         
         NotificationCenter.default.addObserver(self, selector: #selector(listenForOneView), name: .toggleOneView, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(listenForWidgetRearrange), name: .widgetRearrange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(listenForModuleRearrange), name: .moduleRearrange, object: nil)
     }
     
     deinit {
         NotificationCenter.default.removeObserver(self, name: .toggleOneView, object: nil)
         NotificationCenter.default.removeObserver(self, name: .widgetRearrange, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .moduleRearrange, object: nil)
     }
     
     public func append(_ widget: SWidget) {
@@ -508,14 +510,16 @@ public class MenuBar {
     private func recalculateWidth() {
         guard self.oneView, self.active else { return }
         
-        let w = self.activeWidgets.isEmpty ? 0 : self.activeWidgets.map({ $0.item.frame.width }).reduce(0, +) +
-            (CGFloat(self.activeWidgets.count - 1) * Constants.Widget.spacing) +
-            Constants.Widget.spacing * 2
+        let widgets = self.activeWidgets
+        let order = self.sortedWidgets
+        let w = widgets.isEmpty ? 0 : widgets.map({ $0.item.frame.width }).reduce(0, +) +
+            (CGFloat(widgets.count - 1) * Constants.Widget.spacing) +
+            self.view.horizontalPadding + self.view.trailingPadding(for: order)
         self.menuBarItem?.length = w
         self.view.setFrameOrigin(NSPoint(x: 0, y: 0))
         self.view.setFrameSize(NSSize(width: w, height: Constants.Widget.height))
         
-        self.view.recalculate(self.sortedWidgets)
+        self.view.recalculate(order)
         self.callback?()
     }
     
@@ -559,11 +563,31 @@ public class MenuBar {
         guard let name = notification.userInfo?["module"] as? String, name == self.moduleName else {
             return
         }
-        self.view.recalculate(self.sortedWidgets)
+        self.recalculateWidth()
+    }
+
+    /// 合并模块间距变化时同步更新容器宽度和组件位置，使设置即时生效。
+    @objc private func listenForModuleRearrange() {
+        guard self.combinedModules else { return }
+        self.recalculateWidth()
     }
 }
 
 public class MenuBarView: NSView {
+    /// 负间距缩减合并模块的左右留白，最低为零。
+    var horizontalPadding: CGFloat {
+        guard Store.shared.bool(key: "CombinedModules", defaultValue: false) else {
+            return Constants.Widget.spacing
+        }
+        let adjustment = Int(Store.shared.string(key: "CombinedModules_spacing", defaultValue: "none")) ?? 0
+        return max(0, Constants.Widget.spacing + CGFloat(min(0, adjustment)) / 2)
+    }
+
+    /// 速率组件的文字右对齐且贴近边界，仅在其位于模块末尾时保留右侧间隔。
+    func trailingPadding(for widgets: [widget_t]) -> CGFloat {
+        widgets.last == .speed ? max(Constants.Widget.spacing, self.horizontalPadding) : self.horizontalPadding
+    }
+
     init() {
         super.init(frame: NSRect.zero)
     }
@@ -583,7 +607,7 @@ public class MenuBarView: NSView {
     }
     
     public func recalculate(_ list: [widget_t] = []) {
-        var x: CGFloat = Constants.Widget.spacing
+        var x: CGFloat = self.horizontalPadding
         list.forEach { (type: widget_t) in
             if let view = self.subviews.first(where: { $0.identifier == NSUserInterfaceItemIdentifier(type.rawValue) }) {
                 view.setFrameOrigin(NSPoint(x: x, y: view.frame.origin.y))

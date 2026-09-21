@@ -21,7 +21,8 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
         Store.shared.bool(key: "CombinedModules", defaultValue: false)
     }
     private var spacing: CGFloat {
-        CGFloat(Int(Store.shared.string(key: "CombinedModules_spacing", defaultValue: "")) ?? 0)
+        // 负值由模块容器缩减内边距；外部间距不能为负，以免分隔线和组件重叠。
+        max(0, CGFloat(Int(Store.shared.string(key: "CombinedModules_spacing", defaultValue: "none")) ?? 0))
     }
     private var separator: Bool {
         Store.shared.bool(key: "CombinedModules_separator", defaultValue: false)

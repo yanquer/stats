@@ -132,11 +132,8 @@ class ApplicationSettings: NSStackView {
                 state: self.combinedModulesState
             )),
             PreferencesRow(component: self.moduleSelector),
-            PreferencesRow(localizedString("Spacing"), component: selectView(
-                action: #selector(self.toggleCombinedModulesSpacing),
-                items: CombinedModulesSpacings,
-                selected: self.combinedModulesSpacing
-            )),
+            PreferencesRow(localizedString("Spacing"), localizedString("Negative values reduce module padding"),
+                           component: self.combinedModulesSpacingSelector()),
             PreferencesRow(localizedString("Separator"), component: switchView(
                 action: #selector(self.toggleCombinedModulesSeparator),
                 state: self.combinedModulesSeparator
@@ -383,9 +380,23 @@ class ApplicationSettings: NSStackView {
         NotificationCenter.default.post(name: .toggleOneView, object: nil, userInfo: nil)
     }
     
-    @objc private func toggleCombinedModulesSpacing(_ sender: NSMenuItem) {
-        guard let key = sender.representedObject as? String else { return }
+    /// 创建间距选择器并显式恢复选中项，避免新增负值后误显示首项。
+    private func combinedModulesSpacingSelector() -> NSPopUpButton {
+        let selector = selectView(
+            action: #selector(self.toggleCombinedModulesSpacing),
+            items: CombinedModulesSpacings,
+            selected: self.combinedModulesSpacing
+        )
+        let selected = selector.itemArray.first { ($0.representedObject as? String) == self.combinedModulesSpacing }
+        selector.select(selected ?? selector.itemArray.first { ($0.representedObject as? String) == "none" })
+        return selector
+    }
+
+    /// 从原生下拉框读取选中值，保存间距并通知各模块重新布局。
+    @objc private func toggleCombinedModulesSpacing(_ sender: NSPopUpButton) {
+        guard let key = sender.selectedItem?.representedObject as? String else { return }
         self.combinedModulesSpacing = key
+        debug("Combined modules spacing changed to \(key)")
         NotificationCenter.default.post(name: .moduleRearrange, object: nil, userInfo: nil)
     }
     
