@@ -169,6 +169,7 @@
 "Show icon instead of widgets" = "Show icon instead of widgets";
 "Combined details" = "Combined details";
 "Spacing" = "Spacing";
+"Negative values reduce module padding" = "Negative values reduce module padding";
 "Choose file" = "Choose file";
 "Stress tests" = "Stress tests";
 "Keep the menubar items position" = "Keep the menubar items position";

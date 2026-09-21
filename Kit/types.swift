@@ -66,7 +66,11 @@ public let TemperatureUnits: [KeyValue_t] = [
 ]
 
 public let CombinedModulesSpacings: [KeyValue_t] = [
-    KeyValue_t(key: "none", value: "None"),
+    KeyValue_t(key: "-4", value: "-4", additional: -4),
+    KeyValue_t(key: "-3", value: "-3", additional: -3),
+    KeyValue_t(key: "-2", value: "-2", additional: -2),
+    KeyValue_t(key: "-1", value: "-1", additional: -1),
+    KeyValue_t(key: "none", value: "Default"),
     KeyValue_t(key: "1", value: "1", additional: 1),
     KeyValue_t(key: "2", value: "2", additional: 2),
     KeyValue_t(key: "3", value: "3", additional: 3),
