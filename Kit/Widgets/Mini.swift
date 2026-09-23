@@ -29,6 +29,27 @@ public class Mini: WidgetWrapper {
     private var width: CGFloat {
         (self.labelState ? 31 : 36) + (2*Constants.Widget.margin.x)
     }
+
+    /// 将额外紧凑档位限制在 0 到 4 点，旧档位和独立模块不缩小组件。
+    private var compactWidthReduction: CGFloat {
+        guard Store.shared.bool(key: "CombinedModules", defaultValue: false),
+              let spacing = Int(Store.shared.string(key: "CombinedModules_spacing", defaultValue: "none")),
+              spacing < -4 else { return 0 }
+        return CGFloat(-4 - max(-8, spacing))
+    }
+
+    /// 更紧凑的合并档位缩小固定宽度，同时为完整数值、标题和相邻组件保留空间。
+    func layoutWidth(valueText: String, label: String) -> CGFloat {
+        let reduction = self.compactWidthReduction
+        guard reduction > 0 else { return self.width }
+        let valueFont = NSFont.systemFont(ofSize: self.labelState ? 12 : 14, weight: .regular)
+        let valueWidth = (valueText as NSString).size(withAttributes: [.font: valueFont]).width
+        let labelWidth = self.labelState
+            ? (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 7, weight: .light)]).width
+            : 0
+        let minimumWidth = ceil(max(valueWidth, labelWidth)) + Constants.Widget.spacing + 2 * Constants.Widget.margin.x
+        return max(self.width - reduction, minimumWidth)
+    }
     
     private var alignment: NSTextAlignment {
         if let alignmentPair = Alignments.first(where: { $0.key == self.alignmentState }) {
@@ -104,6 +125,11 @@ public class Mini: WidgetWrapper {
             label = self._label
             suffix = self._suffix
         }
+        let valueText = "\(Int(value.rounded(toPlaces: 2) * 100))\(suffix)"
+        let width = self.layoutWidth(valueText: valueText, label: label)
+        // 将保护间隔排除在文字绘制区域之外，右对齐时同样不会贴住下一个组件。
+        let trailingPadding = self.compactWidthReduction > 0 ? Constants.Widget.spacing : 0
+        let contentWidth = width - Constants.Widget.margin.x * 2 - trailingPadding
         
         let valueSize: CGFloat = self.labelState ? 12 : 14
         var origin: CGPoint = CGPoint(x: Constants.Widget.margin.x, y: (Constants.Widget.height-valueSize)/2)
@@ -119,7 +145,7 @@ public class Mini: WidgetWrapper {
                 NSAttributedString.Key.foregroundColor: isDarkMode ? NSColor.white : NSColor.textColor,
                 NSAttributedString.Key.paragraphStyle: style
             ]
-            let rect = CGRect(x: origin.x, y: 12, width: self.width - (Constants.Widget.margin.x*2), height: 7)
+            let rect = CGRect(x: origin.x, y: 12, width: contentWidth, height: 7)
             let str = NSAttributedString.init(string: label, attributes: stringAttributes)
             str.draw(with: rect)
             
@@ -140,8 +166,8 @@ public class Mini: WidgetWrapper {
             NSAttributedString.Key.foregroundColor: color,
             NSAttributedString.Key.paragraphStyle: style
         ]
-        let rect = CGRect(x: origin.x, y: origin.y, width: self.width - (Constants.Widget.margin.x*2), height: valueSize+1)
-        let str = NSAttributedString.init(string: "\(Int(value.rounded(toPlaces: 2) * 100))\(suffix)", attributes: stringAttributes)
+        let rect = CGRect(x: origin.x, y: origin.y, width: contentWidth, height: valueSize+1)
+        let str = NSAttributedString.init(string: valueText, attributes: stringAttributes)
         str.draw(with: rect)
         
         self.setWidth(width)

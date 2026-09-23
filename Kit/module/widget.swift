@@ -562,6 +562,7 @@ public class MenuBar {
         guard self.active else { return }
 
         self.activeWidgets.forEach { (w: SWidget) in
+            w.item.needsDisplay = true
             w.enable()
         }
     }
@@ -576,6 +577,8 @@ public class MenuBar {
     /// 合并模块间距变化时同步更新容器宽度和组件位置，使设置即时生效。
     @objc private func listenForModuleRearrange() {
         guard self.combinedModules else { return }
+        // 即使读数没有变化，也要立即按新档位重绘 Mini 并更新其实际宽度。
+        self.activeWidgets.forEach { $0.item.needsDisplay = true }
         self.recalculateWidth()
     }
 }
