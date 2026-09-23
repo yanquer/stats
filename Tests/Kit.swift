@@ -173,7 +173,7 @@ class CombinedModulesSpacingTests: XCTestCase {
             menuBar.view.addWidget(view)
             menuBar.active = true
         }
-        for value in ["-1", "-2", "-3", "-4", "-999"] {
+        for value in ["-1", "-2", "-3", "-4", "-5", "-6", "-7", "-8", "-999"] {
             Store.shared.set(key: "CombinedModules_spacing", value: value)
             NotificationCenter.default.post(name: .moduleRearrange, object: nil)
             cpu.view.setFrameOrigin(NSPoint(x: network.view.frame.width, y: 0))
@@ -232,5 +232,77 @@ class CombinedModulesSpacingTests: XCTestCase {
         menuBar.widgets[0].sizeCallback?()
         XCTAssertEqual(menuBar.view.frame.width, 34)
         XCTAssertEqual(menuBar.view.subviews[0].frame.minX, 2)
+    }
+
+    /// 更紧凑档位逐级缩小 Mini 的固定宽度，旧档位及独立模块保持原样。
+    func testMiniExtraCompactStepsAndFallback() {
+        let mini = Mini(title: "CPU", config: nil, preview: true)
+        let cases: [(String, CGFloat)] = [
+            ("none", 31), ("-4", 31), ("-5", 30), ("-6", 29), ("-7", 28), ("-8", 27),
+            (String(Int.min), 27), ("invalid", 31), ("8", 31)
+        ]
+        for (value, expectedWidth) in cases {
+            Store.shared.set(key: "CombinedModules_spacing", value: value)
+            XCTAssertEqual(mini.layoutWidth(valueText: "17%", label: "CPU"), expectedWidth, value)
+        }
+        Store.shared.set(key: "CombinedModules_spacing", value: "-8")
+        Store.shared.set(key: "CombinedModules", value: false)
+        XCTAssertEqual(mini.layoutWidth(valueText: "17%", label: "CPU"), 31)
+    }
+
+    /// 长单位、满负载和长标题不能被紧凑档位裁切，保留至少 2 点文字留白。
+    func testMiniCompactWidthFitsLongContent() {
+        Store.shared.set(key: "CombinedModules_spacing", value: "-8")
+        let mini = Mini(title: "CPU", config: nil, preview: true)
+        for (value, label) in [("100%", "CPU"), ("150W", "Sensor"), ("99°C", "Temperature"), ("17%", "Long sensor title")] {
+            let width = mini.layoutWidth(valueText: value, label: label)
+            let valueWidth = (value as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 12)]).width
+            let labelWidth = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 7, weight: .light)]).width
+            XCTAssertGreaterThanOrEqual(width - valueWidth, 2, value)
+            XCTAssertGreaterThanOrEqual(width - labelWidth, 2, label)
+        }
+        let noLabel = Mini(title: "CPU", config: ["Label": false], preview: true)
+        let width = noLabel.layoutWidth(valueText: "100%", label: "Ignored label")
+        let textWidth = ("100%" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 14)]).width
+        XCTAssertGreaterThanOrEqual(width - textWidth, 2)
+        XCTAssertLessThan(noLabel.layoutWidth(valueText: "17%", label: "Ignored label"), 36)
+    }
+
+    /// 通过真实绘制验证读数不变时也能刷新宽度，并在恢复旧档位时还原容器。
+    func testMiniSpacingChangeRedrawsAndResizesContainer() {
+        let menuBar = MenuBar(moduleName: self.moduleName)
+        let mini = MiniRedrawProbe(title: "CPU", config: nil, preview: true)
+        mini.setValue(0.17)
+        menuBar.append(SWidget(.mini, defaultWidget: .mini, module: self.moduleName, item: mini, image: NSImage()))
+        menuBar.view.addWidget(mini)
+        menuBar.active = true
+        for (spacing, expectedWidth) in [("-4", CGFloat(31)), ("-8", 27), ("-4", 31)] {
+            Store.shared.set(key: "CombinedModules_spacing", value: spacing)
+            mini.redrawRequests = 0
+            NotificationCenter.default.post(name: .moduleRearrange, object: nil)
+            XCTAssertGreaterThan(mini.redrawRequests, 0)
+            let image = NSImage(size: NSSize(width: 200, height: 30))
+            image.lockFocus()
+            mini.draw(mini.bounds)
+            image.unlockFocus()
+            let resized = self.expectation(description: "Mini resized for \(spacing)")
+            DispatchQueue.main.async { resized.fulfill() }
+            self.wait(for: [resized], timeout: 2)
+            XCTAssertEqual(mini.frame.width, expectedWidth, spacing)
+            XCTAssertEqual(menuBar.view.frame.width, expectedWidth, spacing)
+        }
+    }
+}
+
+/// 无窗口的测试视图不会保留脏标记，记录实际重绘请求以验证设置通知链路。
+private final class MiniRedrawProbe: Mini {
+    var redrawRequests: Int = 0
+
+    override var needsDisplay: Bool {
+        get { super.needsDisplay }
+        set {
+            if newValue { self.redrawRequests += 1 }
+            super.needsDisplay = newValue
+        }
     }
 }
